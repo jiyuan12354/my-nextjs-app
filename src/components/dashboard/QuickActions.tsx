@@ -17,9 +17,9 @@ export default function QuickActions({ actions, className = '' }: QuickActionsPr
     
     if (action.isEnabled) {
       if (action.href.startsWith('/')) {
-        // Internal navigation (future implementation)
-        console.log(`→ Would navigate to: ${action.href}`);
-        // router.push(action.href);
+        // Internal navigation
+        console.log(`→ Navigating to: ${action.href}`);
+        router.push(action.href);
       } else {
         // External link
         window.open(action.href, '_blank', 'noopener noreferrer');

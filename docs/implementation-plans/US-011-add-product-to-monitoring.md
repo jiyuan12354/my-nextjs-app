@@ -111,7 +111,13 @@ src/app/monitor/add/
     ├── ProductPreview.tsx         # Product information preview
     ├── AlertConfiguration.tsx     # Alert settings configuration
     ├── PlatformSelector.tsx       # Supported platform selection
+    ├── SyncStatusIndicator.tsx    # IndexedDB sync status display
     └── useProductForm.ts          # Custom hook for form state
+
+src/lib/indexeddb/
+├── product-db.ts                 # IndexedDB product storage utilities
+├── sync-manager.ts               # Data synchronization logic
+└── db-types.ts                   # IndexedDB type definitions
 ```
 
 ### Required Components
@@ -122,7 +128,10 @@ src/app/monitor/add/
 - ProductPreview ⬜
 - AlertConfiguration ⬜
 - PlatformSelector ⬜
+- SyncStatusIndicator ⬜
 - useProductForm ⬜
+- ProductDB utilities ⬜
+- SyncManager ⬜
 
 ### State Management Requirements
 
@@ -159,6 +168,41 @@ interface ProductFormState {
   isSubmitting: boolean;
   errors: Record<string, string>;
   touchedFields: Set<string>;
+  
+  // IndexedDB state
+  localStorageStatus: 'idle' | 'saving' | 'saved' | 'error';
+  syncStatus: 'pending' | 'synced' | 'error';
+}
+
+interface ExtractedProduct {
+  name: string;
+  price: number;
+  image: string;
+  retailer: string;
+  category?: string;
+  originalUrl: string;
+  isAvailable: boolean;
+}
+
+// IndexedDB Storage Interfaces
+interface StoredMonitoredProduct {
+  id: string;
+  data: MonitoredProductData;
+  timestamp: string;
+  status: 'pending' | 'synced' | 'error';
+  version: number;
+}
+
+interface MonitoredProductData {
+  name: string;
+  price: number;
+  image: string;
+  retailer: string;
+  category?: string;
+  originalUrl?: string;
+  alertSettings: AlertConfiguration;
+  dateAdded: string;
+  lastUpdated: string;
 }
 
 interface ExtractedProduct {
@@ -234,6 +278,19 @@ interface ExtractedProduct {
    - [ ] Success confirmation with navigation options
    - [ ] Error handling and user feedback
 
+5. **IndexedDB Data Persistence**
+
+   - [ ] Immediate local storage of product data on form submission
+   - [ ] Visual confirmation of local storage (sync status indicator)
+   - [ ] Optimistic UI updates showing product added immediately
+   - [ ] Background synchronization with server API
+   - [ ] Offline capability - form works without internet connection
+   - [ ] Sync status indicators (pending, synced, error states)
+   - [ ] Conflict resolution for simultaneous online/offline changes
+   - [ ] Data versioning and migration support
+   - [ ] Storage quota management and cleanup
+   - [ ] Fallback to server-only mode if IndexedDB unavailable
+
 ### Navigation Rules
 
 - Form accessible via dashboard quick action button
@@ -262,6 +319,7 @@ src/app/monitor/add/
     ├── ProductPreview.tsx ⬜
     ├── AlertConfiguration.tsx ⬜
     ├── PlatformSelector.tsx ⬜
+    ├── SyncStatusIndicator.tsx ⬜
     └── useProductForm.ts ⬜
 
 src/types/
@@ -270,7 +328,12 @@ src/types/
 src/lib/
 ├── product-extraction.ts ⬜
 ├── url-validation.ts ⬜
+├── indexeddb/
+│   ├── product-db.ts ⬜
+│   ├── sync-manager.ts ⬜
+│   └── db-types.ts ⬜
 └── monitoring/
+    └── product-utils.ts ⬜
     └── product-utils.ts ⬜
 
 src/components/ui/ (if needed)
@@ -281,7 +344,10 @@ src/components/ui/ (if needed)
 
 ## Status
 
-⬜ NOT STARTED
+[~] IN PROGRESS - Updated with IndexedDB requirements
+
+**Previous Implementation Status**: ✅ COMPLETED (Basic functionality without IndexedDB)
+**Current Enhancement**: 🔄 Adding IndexedDB data persistence and offline capabilities
 
 1. **Setup & Configuration**
 
@@ -289,6 +355,9 @@ src/components/ui/ (if needed)
    - [ ] Set up TypeScript interfaces for product monitoring
    - [ ] Configure form validation schemas
    - [ ] Set up mock product extraction utilities
+   - [ ] Create IndexedDB schema and database initialization
+   - [ ] Set up data synchronization utilities
+   - [ ] Configure offline storage capabilities
 
 2. **Layout Implementation**
 
@@ -304,6 +373,8 @@ src/components/ui/ (if needed)
    - [ ] Implement product preview component
    - [ ] Build alert configuration interface
    - [ ] Add platform selector component
+   - [ ] Create sync status indicator component
+   - [ ] Add offline mode indicators
 
 4. **Form Logic & State**
 
@@ -311,6 +382,10 @@ src/components/ui/ (if needed)
    - [ ] Add form validation and error handling
    - [ ] Create product extraction simulation
    - [ ] Implement form submission workflow
+   - [ ] Integrate IndexedDB storage for immediate persistence
+   - [ ] Add optimistic UI updates with rollback capability
+   - [ ] Implement background sync with server
+   - [ ] Add offline/online state management
 
 5. **Testing**
    - [ ] URL validation functionality
@@ -318,6 +393,11 @@ src/components/ui/ (if needed)
    - [ ] Responsive design across devices
    - [ ] Accessibility compliance
    - [ ] Integration with existing monitoring system
+   - [ ] IndexedDB storage and retrieval operations
+   - [ ] Offline functionality and data persistence
+   - [ ] Sync status indicators and error handling
+   - [ ] Data migration and schema versioning
+   - [ ] Storage quota management and cleanup
 
 ## Dependencies
 
@@ -520,6 +600,283 @@ const useProductForm = () => {
 };
 ```
 
+### IndexedDB Implementation
+
+#### Product Database Setup
+
+```typescript
+// filepath: src/lib/indexeddb/product-db.ts
+import { StoredMonitoredProduct, MonitoredProductData } from '../types/product-monitoring';
+
+class ProductDB {
+  private dbName = 'SmartMonitoringDB';
+  private version = 1;
+  private db: IDBDatabase | null = null;
+
+  async init(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.version);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve();
+      };
+      
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        
+        // Create products store
+        const productsStore = db.createObjectStore('monitored_products', {
+          keyPath: 'id'
+        });
+        productsStore.createIndex('status', 'status', { unique: false });
+        productsStore.createIndex('timestamp', 'timestamp', { unique: false });
+        
+        // Create sync queue store
+        const syncStore = db.createObjectStore('sync_queue', {
+          keyPath: 'id'
+        });
+        syncStore.createIndex('operation', 'operation', { unique: false });
+      };
+    });
+  }
+
+  async addProduct(productData: MonitoredProductData): Promise<string> {
+    if (!this.db) await this.init();
+    
+    const id = `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const storedProduct: StoredMonitoredProduct = {
+      id,
+      data: productData,
+      timestamp: new Date().toISOString(),
+      status: 'pending',
+      version: 1,
+    };
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['monitored_products'], 'readwrite');
+      const store = transaction.objectStore('monitored_products');
+      const request = store.add(storedProduct);
+      
+      request.onsuccess = () => {
+        console.log(JSON.stringify({
+          timestamp: new Date().toISOString(),
+          level: 'INFO',
+          service: 'my-nextjs-app',
+          correlationId: `add-product-${id}`,
+          message: 'Product stored locally in IndexedDB',
+          context: {
+            productId: id,
+            productName: productData.name,
+            status: 'pending'
+          }
+        }));
+        resolve(id);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async getProducts(): Promise<StoredMonitoredProduct[]> {
+    if (!this.db) await this.init();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['monitored_products'], 'readonly');
+      const store = transaction.objectStore('monitored_products');
+      const request = store.getAll();
+      
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async updateProductStatus(id: string, status: 'pending' | 'synced' | 'error'): Promise<void> {
+    if (!this.db) await this.init();
+    
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction(['monitored_products'], 'readwrite');
+      const store = transaction.objectStore('monitored_products');
+      const getRequest = store.get(id);
+      
+      getRequest.onsuccess = () => {
+        const product = getRequest.result;
+        if (product) {
+          product.status = status;
+          const updateRequest = store.put(product);
+          updateRequest.onsuccess = () => resolve();
+          updateRequest.onerror = () => reject(updateRequest.error);
+        }
+      };
+      getRequest.onerror = () => reject(getRequest.error);
+    });
+  }
+}
+
+export const productDB = new ProductDB();
+```
+
+#### Sync Manager Implementation
+
+```typescript
+// filepath: src/lib/indexeddb/sync-manager.ts
+import { productDB } from './product-db';
+import { StoredMonitoredProduct } from '../types/product-monitoring';
+
+class SyncManager {
+  private isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+  private syncInProgress = false;
+
+  constructor() {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        this.isOnline = true;
+        this.syncPendingProducts();
+      });
+      
+      window.addEventListener('offline', () => {
+        this.isOnline = false;
+      });
+    }
+  }
+
+  async syncPendingProducts(): Promise<void> {
+    if (!this.isOnline || this.syncInProgress) return;
+    
+    this.syncInProgress = true;
+    
+    try {
+      const products = await productDB.getProducts();
+      const pendingProducts = products.filter(p => p.status === 'pending');
+      
+      for (const product of pendingProducts) {
+        try {
+          await this.syncProductToServer(product);
+          await productDB.updateProductStatus(product.id, 'synced');
+          
+          console.log(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            level: 'INFO',
+            service: 'my-nextjs-app',
+            correlationId: `sync-${product.id}`,
+            message: 'Product synchronized with server',
+            context: {
+              productId: product.id,
+              productName: product.data.name,
+              syncStatus: 'synced'
+            }
+          }));
+        } catch (error) {
+          await productDB.updateProductStatus(product.id, 'error');
+          
+          console.log(JSON.stringify({
+            timestamp: new Date().toISOString(),
+            level: 'ERROR',
+            service: 'my-nextjs-app',
+            correlationId: `sync-error-${product.id}`,
+            message: 'Failed to sync product with server',
+            context: {
+              productId: product.id,
+              error: (error as Error).message
+            }
+          }));
+        }
+      }
+    } finally {
+      this.syncInProgress = false;
+    }
+  }
+
+  private async syncProductToServer(product: StoredMonitoredProduct): Promise<void> {
+    // Simulate server API call
+    await new Promise((resolve, reject) => {
+      setTimeout(() => {
+        // 90% success rate for demo purposes
+        if (Math.random() > 0.1) {
+          resolve(undefined);
+        } else {
+          reject(new Error('Server sync failed'));
+        }
+      }, 1000 + Math.random() * 2000);
+    });
+  }
+
+  isOffline(): boolean {
+    return !this.isOnline;
+  }
+}
+
+export const syncManager = new SyncManager();
+```
+
+#### Enhanced Custom Hook with IndexedDB
+
+```typescript
+// Enhanced useProductForm hook with IndexedDB integration
+const useProductForm = () => {
+  const [state, setState] = useState<ProductFormState>(initialState);
+  const router = useRouter();
+
+  const submitForm = useCallback(async () => {
+    setState(prev => ({ 
+      ...prev, 
+      isSubmitting: true, 
+      localStorageStatus: 'saving' 
+    }));
+    
+    try {
+      // Create product data from form state
+      const productData: MonitoredProductData = {
+        name: state.inputMethod === 'url' 
+          ? state.extractedProduct?.name || 'Unknown Product'
+          : state.productName,
+        price: state.inputMethod === 'url'
+          ? state.extractedProduct?.price || 0
+          : state.currentPrice,
+        image: state.inputMethod === 'url'
+          ? state.extractedProduct?.image || ''
+          : state.productImage,
+        retailer: state.inputMethod === 'url'
+          ? state.extractedProduct?.retailer || 'Unknown'
+          : state.retailer,
+        category: state.productCategory,
+        originalUrl: state.inputMethod === 'url' ? state.productUrl : undefined,
+        alertSettings: state.alertSettings,
+        dateAdded: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+      };
+
+      // Store locally first for immediate feedback
+      const productId = await productDB.addProduct(productData);
+      
+      setState(prev => ({ 
+        ...prev, 
+        localStorageStatus: 'saved',
+        syncStatus: 'pending'
+      }));
+
+      // Trigger background sync
+      if (!syncManager.isOffline()) {
+        syncManager.syncPendingProducts();
+      }
+
+      // Navigate with success indication
+      router.push('/dashboard?added=success');
+      
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        isSubmitting: false,
+        localStorageStatus: 'error',
+        errors: { submit: 'Failed to save product. Please try again.' },
+      }));
+    }
+  }, [state, router]);
+
+  // ... rest of hook implementation
+};
+```
+
 ## Testing Requirements
 
 ### Integration Tests (Target: 80% Coverage)
@@ -580,6 +937,121 @@ describe('Accessibility', () => {
 
   it('should support keyboard navigation', async () => {
     // Test keyboard interaction
+  });
+});
+```
+
+4. **IndexedDB Integration Tests**
+
+```typescript
+describe('IndexedDB Data Persistence', () => {
+  beforeEach(async () => {
+    // Setup test database
+    await productDB.init();
+  });
+
+  afterEach(async () => {
+    // Clear test data
+    const products = await productDB.getProducts();
+    for (const product of products) {
+      await productDB.deleteProduct(product.id);
+    }
+  });
+
+  it('should store product data locally on form submission', async () => {
+    const productData = {
+      name: 'Test Product',
+      price: 99.99,
+      retailer: 'Test Store',
+      // ... other required fields
+    };
+
+    const productId = await productDB.addProduct(productData);
+    const storedProducts = await productDB.getProducts();
+    
+    expect(storedProducts).toHaveLength(1);
+    expect(storedProducts[0].id).toBe(productId);
+    expect(storedProducts[0].status).toBe('pending');
+  });
+
+  it('should update sync status after server synchronization', async () => {
+    const productId = await productDB.addProduct(mockProductData);
+    await productDB.updateProductStatus(productId, 'synced');
+    
+    const products = await productDB.getProducts();
+    const product = products.find(p => p.id === productId);
+    
+    expect(product?.status).toBe('synced');
+  });
+
+  it('should handle offline form submission gracefully', async () => {
+    // Simulate offline state
+    Object.defineProperty(navigator, 'onLine', {
+      writable: true,
+      value: false,
+    });
+
+    const productData = mockProductData;
+    const productId = await productDB.addProduct(productData);
+    
+    // Product should be stored locally
+    const products = await productDB.getProducts();
+    expect(products).toHaveLength(1);
+    expect(products[0].status).toBe('pending');
+    
+    // Restore online state
+    Object.defineProperty(navigator, 'onLine', {
+      writable: true,
+      value: true,
+    });
+  });
+
+  it('should provide visual feedback for storage operations', async () => {
+    // Test UI state updates during storage operations
+    // This would be tested in component integration tests
+  });
+});
+```
+
+5. **Sync Manager Tests**
+
+```typescript
+describe('Sync Manager', () => {
+  it('should sync pending products when online', async () => {
+    // Add pending product
+    const productId = await productDB.addProduct(mockProductData);
+    
+    // Trigger sync
+    await syncManager.syncPendingProducts();
+    
+    // Check status updated
+    const products = await productDB.getProducts();
+    const product = products.find(p => p.id === productId);
+    expect(product?.status).toBe('synced');
+  });
+
+  it('should handle sync errors gracefully', async () => {
+    // Mock server error
+    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('Server error'));
+    
+    const productId = await productDB.addProduct(mockProductData);
+    await syncManager.syncPendingProducts();
+    
+    const products = await productDB.getProducts();
+    const product = products.find(p => p.id === productId);
+    expect(product?.status).toBe('error');
+  });
+
+  it('should detect online/offline status changes', async () => {
+    expect(syncManager.isOffline()).toBe(false);
+    
+    // Simulate going offline
+    window.dispatchEvent(new Event('offline'));
+    expect(syncManager.isOffline()).toBe(true);
+    
+    // Simulate coming online
+    window.dispatchEvent(new Event('online'));
+    expect(syncManager.isOffline()).toBe(false);
   });
 });
 ```
