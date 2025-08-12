@@ -1,6 +1,7 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { useEffect } from "react";
+import { AuthProvider } from "../components/auth/AuthProvider";
 
 export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
@@ -37,5 +38,9 @@ export default function App({ Component, pageProps }: AppProps) {
     registerSW();
   }, []);
 
-  return <Component {...pageProps} />;
+  return (
+    <AuthProvider>
+      <Component {...pageProps} />
+    </AuthProvider>
+  );
 }

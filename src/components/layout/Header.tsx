@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '../auth/AuthProvider';
 
 interface HeaderProps {
   className?: string;
@@ -14,6 +15,7 @@ export default function Header({ className = '' }: HeaderProps) {
   const [notificationCount, setNotificationCount] = useState(0);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const router = useRouter();
+  const { isAuthenticated, user, logout, isLoading } = useAuth();
 
   // Check if PWA is installable
   useEffect(() => {
@@ -116,27 +118,75 @@ export default function Header({ className = '' }: HeaderProps) {
 
           {/* Action Buttons */}
           <div className="flex items-center space-x-2">
-            {/* Notifications */}
-            <button
-              onClick={() => handleNavClick('/notifications')}
-              className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Notifications"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-3.5-3.5v-5.5a8.5 8.5 0 0 0-17 0v5.5L-.5 17h5m5 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
-              </svg>
-              {notificationCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                  {notificationCount > 9 ? '9+' : notificationCount}
-                </span>
-              )}
-            </button>
+            {/* Authentication Actions */}
+            {!isLoading && (
+              <>
+                {isAuthenticated && user ? (
+                  /* Authenticated User Actions */
+                  <div className="flex items-center space-x-2">
+                    {/* Notifications */}
+                    <button
+                      onClick={() => handleNavClick('/notifications')}
+                      className="relative p-2 text-gray-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Notifications"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-3.5-3.5v-5.5a8.5 8.5 0 0 0-17 0v5.5L-.5 17h5m5 0v1a3 3 0 1 1-6 0v-1m6 0H9" />
+                      </svg>
+                      {notificationCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                          {notificationCount > 9 ? '9+' : notificationCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* User Menu */}
+                    <div className="hidden sm:flex items-center space-x-3">
+                      {user.avatar && (
+                        <img
+                          src={user.avatar}
+                          alt={user.name}
+                          className="w-8 h-8 rounded-full"
+                        />
+                      )}
+                      <div className="text-sm">
+                        <p className="text-gray-900 font-medium">{user.name}</p>
+                        <p className="text-gray-500 text-xs">{user.role}</p>
+                      </div>
+                      <button
+                        onClick={logout}
+                        className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors"
+                        title="Logout"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Unauthenticated User Actions */
+                  <div className="hidden sm:flex items-center space-x-2">
+                    <Link
+                      href="/auth/login"
+                      className="px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      Sign In
+                    </Link>
+                    <Link
+                      href="/auth/register"
+                      className="px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                    >
+                      Sign Up
+                    </Link>
+                  </div>
+                )}
+              </>
+            )}
 
             {/* Install PWA Button */}
             {isInstallable && (
               <button
                 onClick={handleInstallPWA}
-                className="hidden sm:flex items-center space-x-1 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                className="hidden sm:flex items-center space-x-1 px-3 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors"
                 title="Install App"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -178,11 +228,75 @@ export default function Header({ className = '' }: HeaderProps) {
                 </button>
               ))}
               
+              {/* Mobile Authentication Actions */}
+              {!isLoading && (
+                <div className="border-t border-gray-200 pt-2 mt-2">
+                  {isAuthenticated && user ? (
+                    <>
+                      {/* User Info */}
+                      <div className="px-3 py-2 mb-2">
+                        <div className="flex items-center space-x-3">
+                          {user.avatar && (
+                            <img
+                              src={user.avatar}
+                              alt={user.name}
+                              className="w-8 h-8 rounded-full"
+                            />
+                          )}
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                            <p className="text-xs text-gray-500">{user.email}</p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Logout Button */}
+                      <button
+                        onClick={() => {
+                          setIsMenuOpen(false);
+                          logout();
+                        }}
+                        className="w-full flex items-center space-x-3 px-3 py-2 text-left text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        <span>Logout</span>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {/* Sign In Button */}
+                      <button
+                        onClick={() => handleNavClick('/auth/login')}
+                        className="w-full flex items-center space-x-3 px-3 py-2 text-left text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                        </svg>
+                        <span>Sign In</span>
+                      </button>
+                      
+                      {/* Sign Up Button */}
+                      <button
+                        onClick={() => handleNavClick('/auth/register')}
+                        className="w-full flex items-center space-x-3 px-3 py-2 text-left text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                        </svg>
+                        <span>Sign Up</span>
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+              
               {/* Mobile Install Button */}
               {isInstallable && (
                 <button
                   onClick={handleInstallPWA}
-                  className="w-full flex items-center space-x-3 px-3 py-2 text-left text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="w-full flex items-center space-x-3 px-3 py-2 text-left text-sm font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors mt-2"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8l-8-8-8 8" />

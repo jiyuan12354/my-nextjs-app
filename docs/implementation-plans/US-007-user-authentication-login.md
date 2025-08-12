@@ -188,6 +188,14 @@ const authActions = {
    - Login/logout button in header
    - User avatar/name display when logged in
    - Protected route handling
+   - Home page route protection and redirects
+   ```
+
+4. **Home Page Route Protection**
+   ```
+   - Unauthenticated users visiting "/" redirect to "/auth/login"
+   - Authenticated users visiting "/" redirect to "/dashboard" 
+   - Seamless navigation without manual intervention
    ```
 
 ### Functionality
@@ -216,6 +224,8 @@ const authActions = {
 ### Navigation Rules
 
 - Unauthenticated users are redirected to login page when accessing protected routes
+- **Home page (`/`) redirects unauthenticated users to `/auth/login`**
+- **Home page (`/`) redirects authenticated users to `/dashboard`**
 - Successful login redirects to dashboard or originally requested page
 - Logout redirects to login page with session cleared
 - Already authenticated users skip login page and go to dashboard
@@ -246,39 +256,91 @@ src/lib/auth/
 src/components/layout/
 └── Header.tsx ⬜                    # Update with auth integration
 
+src/pages/
+└── index.tsx ⬜                     # NEW: Add home page route protection
+
 src/middleware.ts ⬜                  # Route protection middleware
 ```
 
 ## Status
 
-🟨 IN PROGRESS
+🟨 IN PROGRESS - BLOCKED ON REDIRECT ISSUE
+
+### Critical Bug: Login Redirect Failure ⚠️
+
+**Issue Status**: [!] Blocked
+**Severity**: High - Prevents successful login completion
+
+**Problem Description**:
+The authentication system successfully validates credentials and updates state, but the post-login redirect to dashboard fails. Users remain on the login page despite successful authentication.
+
+**Technical Details**:
+- Login form correctly calls `router.push('/dashboard')` after successful authentication
+- AuthProvider updates `isAuthenticated` state correctly
+- Console shows "✅ Login successful, redirecting to: /dashboard"
+- No JavaScript errors or infinite loops
+- Session data is properly stored in localStorage
+- Issue persists even after clearing browser storage
+
+**Current Implementation Status**:
+- ✅ Authentication flow (mock credentials validation)
+- ✅ Session management (localStorage)
+- ✅ Form validation and error handling
+- ✅ AuthProvider context setup
+- ✅ RouteGuard implementation
+- ❌ **Login redirect mechanism** (BROKEN)
+
+**Required Fix**:
+Implement reliable post-login navigation to dashboard page. This is blocking the completion of US-007.
+
+**Debugging Tasks**:
+1. [ ] Test router.push() Promise handling
+2. [ ] Verify Next.js routing configuration
+3. [ ] Test alternative redirect methods (router.replace, window.location)
+4. [ ] Check for middleware interference
+5. [ ] Validate dashboard route accessibility
+6. [ ] Add comprehensive router state logging
 
 1. Setup & Configuration
 
-   - [ ] Create authentication directory structure
-   - [ ] Set up TypeScript interfaces for auth state
-   - [ ] Configure mock user credentials
-   - [ ] Set up local storage utilities
+   - [x] Create authentication directory structure
+   - [x] Set up TypeScript interfaces for auth state
+   - [x] Configure mock user credentials
+   - [x] Set up local storage utilities
 
 2. Core Authentication
 
-   - [ ] Implement AuthProvider context
-   - [ ] Create useAuth custom hook
-   - [ ] Build mock authentication service
-   - [ ] Implement session management
+   - [x] Implement AuthProvider context
+   - [x] Create useAuth custom hook
+   - [x] Build mock authentication service
+   - [x] Implement session management
 
 3. UI Implementation
 
-   - [ ] Create LoginForm component
-   - [ ] Build login page layout
-   - [ ] Implement form validation
-   - [ ] Add loading and error states
+   - [x] Create LoginForm component
+   - [x] Build login page layout
+   - [x] Implement form validation
+   - [x] Add loading and error states
 
 4. Integration
-   - [ ] Update Header component with auth state
-   - [ ] Implement route protection middleware
-   - [ ] Add logout functionality
-   - [ ] Test authentication flow
+   - [~] Update Header component with auth state
+   - [!] **BLOCKED**: Implement route protection middleware - redirect fails
+   - [x] Add logout functionality
+   - [!] **BLOCKED**: Test authentication flow - redirect broken
+
+5. Critical Bug Fix Required
+   - [ ] **URGENT**: Fix login redirect mechanism
+   - [ ] Verify router.push() implementation
+   - [ ] Test alternative navigation methods
+   - [ ] Add comprehensive redirect debugging
+   - [ ] Validate dashboard route configuration
+
+6. **NEW**: Home Page Route Protection
+   - [ ] Add RouteGuard to home page (`src/pages/index.tsx`)
+   - [ ] Implement redirect logic for unauthenticated users → `/auth/login`
+   - [ ] Implement redirect logic for authenticated users → `/dashboard`
+   - [ ] Test home page navigation flows
+   - [ ] Verify seamless user experience
 
 ## Dependencies
 

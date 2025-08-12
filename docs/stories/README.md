@@ -28,6 +28,7 @@ Get real-time notifications when monitored product prices drop below set thresho
 Log in to the platform to access personalized monitoring lists and settings.
 - **Phase 1**: Mock authentication for development
 - **Phase 2**: Full authentication system
+- **Status**: 🟨 IN PROGRESS - BLOCKED on login redirect issue
 
 ### 08. [User Registration](./08-user-registration.md)
 Create new user accounts to enable personalized shopping monitoring.
@@ -39,11 +40,20 @@ Manage user profile, account settings, and notification preferences.
 - **Phase 1**: Basic profile display with mock data
 - **Phase 2**: Full profile management with backend integration
 
+### 10. [User Dashboard Homepage](./10-user-dashboard-homepage.md)
+Access personalized dashboard after login with monitoring overview and quick actions.
+- **Phase 1**: Static dashboard with mock data and getting started guide
+- **Phase 2**: Dynamic dashboard with real-time data and analytics
+
 ## Story Dependencies
 
 ```
 ┌─────────────────────────────────────────┐
 │ 07. User Authentication (Foundation)    │
+└─────────────┬───────────────────────────┘
+              │
+┌─────────────▼───────────────────────────┐
+│ 10. User Dashboard Homepage             │
 └─────────────┬───────────────────────────┘
               │
 ┌─────────────▼───────────────────────────┐
@@ -66,11 +76,12 @@ Manage user profile, account settings, and notification preferences.
 ## Implementation Priority
 
 ### MVP Phase (Current Development)
-1. **US-04**: Access Platform via Web ✅ *In Progress*
-2. **US-07**: User Authentication (Mock) 
-3. **US-01**: Monitor Product Prices
-4. **US-05**: Manage Shopping Lists
-5. **US-06**: Receive Price Notifications
+1. **US-04**: Access Platform via Web ✅ *Completed*
+2. **US-07**: User Authentication (Mock) 🟨 *In Progress - Blocked on redirect*
+3. **US-10**: User Dashboard Homepage ✅ *Completed*
+4. **US-01**: Monitor Product Prices
+5. **US-05**: Manage Shopping Lists
+6. **US-06**: Receive Price Notifications
 
 ### Future Phases
 1. **US-02**: Generate Shopping Plans
