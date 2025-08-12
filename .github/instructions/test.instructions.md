@@ -153,6 +153,33 @@ Format all logs as structured JSON with consistent field names and ordering for 
 - Perform code reviews before merging
 - Use conventional commit messages
 
+### Implementation Plan Completion Protocol
+When completing an implementation plan using `execute-implementation-plan.prompt.md`:
+
+1. **Status Confirmation Process**:
+   - After completing an implementation plan, always confirm the final status in the project README.md
+   - Update story status indicators (🟩 COMPLETED, 🟨 IN PROGRESS, ⬜ NOT STARTED, 🟥 BLOCKED)
+   - Verify all acceptance criteria have been met
+
+2. **Issue Identification and Resolution**:
+   - Ask the user to confirm if there are any issues or problems with the completed implementation
+   - If issues are identified, create a dedicated implementation plan for fixing each issue
+   - Follow the same implementation planning structure for issue resolution
+   - Link issue resolution plans to the original user story for traceability
+
+3. **Documentation Updates**:
+   - Update implementation priority lists in README.md
+   - Mark completed tasks with appropriate status indicators
+   - Document any dependencies or blockers that were resolved
+   - Update story dependency diagrams if necessary
+
+4. **Quality Assurance Checklist**:
+   - Verify all components are properly implemented according to specifications
+   - Confirm responsive design works across all target devices
+   - Validate accessibility compliance (WCAG guidelines)
+   - Ensure proper error handling and loading states
+   - Test integration with existing system components
+
 ### Commit Message Guidelines
 Follow [Conventional Commits](https://www.conventionalcommits.org/) format with [Gitmojis](https://gitmoji.dev/):
 
