@@ -117,20 +117,8 @@ export default function LoginForm({ onSuccess, redirectTo = '/dashboard' }: Logi
         if (onSuccess) {
           onSuccess();
         } else {
-          // Try multiple redirect strategies
-          console.log('🚀 Attempting router.push...');
-          
-          // First try router.push
-          const pushResult = router.push(redirectTo);
-          console.log('Router.push result:', pushResult);
-          
-          // Also try window.location as backup after a short delay
-          setTimeout(() => {
-            if (router.pathname === '/auth/login') {
-              console.log('⚡ Router.push failed, using window.location fallback');
-              window.location.href = redirectTo;
-            }
-          }, 1000);
+          // Enhanced redirect handling with multiple strategies
+          await handleRedirect(redirectTo);
         }
       } else {
         setErrors({ general: result.error || 'Login failed. Please try again.' });
@@ -146,6 +134,53 @@ export default function LoginForm({ onSuccess, redirectTo = '/dashboard' }: Logi
   // Toggle password visibility
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
+  };
+
+  // Enhanced redirect handler with multiple strategies
+  const handleRedirect = async (redirectTo: string) => {
+    try {
+      console.log('🚀 Attempting router.push to:', redirectTo);
+      console.log('📍 Current router state before redirect:', {
+        pathname: router.pathname,
+        asPath: router.asPath,
+        query: router.query
+      });
+      
+      // Strategy 1: Await router.push promise
+      const success = await router.push(redirectTo);
+      console.log('✅ Router.push completed with result:', success);
+      
+      // Verify navigation occurred after a brief delay
+      setTimeout(() => {
+        const currentPath = router.pathname;
+        const targetPath = redirectTo.split('?')[0];
+        
+        if (currentPath !== targetPath) {
+          console.log('⚠️ Router.push succeeded but navigation incomplete');
+          console.log('📍 Expected:', targetPath, 'Current:', currentPath);
+          console.log('🔄 Using window.location fallback');
+          window.location.href = redirectTo;
+        } else {
+          console.log('✅ Navigation successful to:', redirectTo);
+        }
+      }, 500);
+      
+    } catch (error) {
+      console.error('❌ Router.push failed:', error);
+      
+      // Strategy 2: Try router.replace as fallback
+      try {
+        console.log('🔄 Attempting router.replace fallback');
+        await router.replace(redirectTo);
+        console.log('✅ Router.replace succeeded');
+      } catch (replaceError) {
+        console.error('❌ Router.replace also failed:', replaceError);
+        
+        // Strategy 3: Force navigation with window.location
+        console.log('🔄 Using window.location as final fallback');
+        window.location.href = redirectTo;
+      }
+    }
   };
 
   return (

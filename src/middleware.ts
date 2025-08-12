@@ -1,47 +1,24 @@
-// Middleware for route protection
+// Middleware for route protection - Simplified for client-side auth
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Routes that require authentication
-const protectedRoutes = [
-  '/dashboard',
-  '/profile',
-  '/settings',
-  '/monitor',
-  '/lists',
-  '/compare',
-  '/notifications',
-];
-
-// Routes that should redirect authenticated users
-const authRoutes = [
-  '/auth/login',
-  '/auth/register',
-];
-
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
-  // Get session from cookie (in a real app, you'd validate the JWT token)
-  // For our mock implementation, we'll check localStorage via a custom header
-  const isAuthenticated = request.headers.get('x-authenticated') === 'true';
-  
-  // Check if the route requires authentication
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
-  const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
-  
-  // If accessing protected route without authentication, redirect to login
-  if (isProtectedRoute && !isAuthenticated) {
-    const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+  // Skip middleware for auth routes, API routes, and static assets
+  if (
+    pathname.startsWith('/auth') || 
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/_next') ||
+    pathname.includes('.')
+  ) {
+    return NextResponse.next();
   }
   
-  // If authenticated user tries to access auth routes, redirect to dashboard
-  if (isAuthRoute && isAuthenticated) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
-  }
+  // For client-side authentication using localStorage,
+  // we let the RouteGuard components handle route protection
+  // Middleware mainly handles API route protection and basic redirects
   
   return NextResponse.next();
 }
