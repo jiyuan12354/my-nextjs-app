@@ -1,10 +1,9 @@
-// Custom hook for dashboard data management
+// Custom hook for dashboard data management with IndexedDB integration
 
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../auth/AuthProvider';
 import { DashboardData, UseDashboardDataReturn } from '../../../types/dashboard';
-import { mockDashboardData, mockDashboardDataWithActivity } from '../../../lib/dashboard/mock-data';
-import '../../../lib/dashboard/dashboard-utils'; // Load test utils
+import { dashboardDataService } from '../../../lib/dashboard/dashboard-data-service';
 
 export const useDashboardData = (): UseDashboardDataReturn => {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -17,41 +16,25 @@ export const useDashboardData = (): UseDashboardDataReturn => {
       setIsLoading(true);
       setError(null);
       
-      console.log('🔄 Loading dashboard data...');
+      console.log('🔄 Loading dashboard data from IndexedDB...');
       
-      // Simulate API call with mock data (800ms delay for realistic loading)
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Check if user has visited dashboard before
-      const hasVisited = localStorage.getItem('dashboard-visited');
-      const hasExistingData = localStorage.getItem('user-has-data') === 'true';
-      const hasCompletedOnboarding = localStorage.getItem('getting-started-dismissed') === 'true';
-      
-      // Determine which mock data to use
-      const dashboardData: DashboardData = hasExistingData 
-        ? mockDashboardDataWithActivity 
-        : {
-            ...mockDashboardData,
-            isFirstTimeUser: !hasVisited && !hasCompletedOnboarding,
-          };
+      // Load real data from IndexedDB
+      const dashboardData = await dashboardDataService.getDashboardData();
       
       console.log('✅ Dashboard data loaded:', {
-        hasExistingData,
-        hasVisited,
-        hasCompletedOnboarding,
+        productCount: dashboardData.stats.monitoredProducts,
+        activeAlerts: dashboardData.stats.activeAlerts,
+        moneySaved: dashboardData.stats.moneySaved,
         isFirstTimeUser: dashboardData.isFirstTimeUser,
+        recentActivityCount: dashboardData.recentActivity.length,
       });
       
       setData(dashboardData);
       
       // Mark dashboard as visited
+      const hasVisited = localStorage.getItem('dashboard-visited');
       if (!hasVisited) {
         localStorage.setItem('dashboard-visited', 'true');
-      }
-      
-      // Dev console helper
-      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-        console.log('💡 Tip: Use dashboardTestUtils.help() in console to test different user scenarios');
       }
       
     } catch (err) {
@@ -62,14 +45,24 @@ export const useDashboardData = (): UseDashboardDataReturn => {
     }
   }, []);
 
+  // Set up real-time data updates
   useEffect(() => {
-    if (user) {
+    if (!user) return;
+
+    // Initial load
+    loadDashboardData();
+
+    // Listen for product changes
+    const unsubscribe = dashboardDataService.onDataChanged(() => {
+      console.log('🔄 Products changed, refreshing dashboard...');
       loadDashboardData();
-    }
+    });
+
+    return unsubscribe;
   }, [user, loadDashboardData]);
 
   const refreshData = useCallback(() => {
-    console.log('🔄 Refreshing dashboard data...');
+    console.log('🔄 Manually refreshing dashboard data...');
     loadDashboardData();
   }, [loadDashboardData]);
 

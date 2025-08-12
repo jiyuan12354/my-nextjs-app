@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
+import { productDB } from '../../lib/indexeddb/product-db';
+import type { MonitoredProductData } from '../../lib/indexeddb/db-types';
 
 export const AddProductForm: React.FC = () => {
   const [inputMethod, setInputMethod] = useState<'url' | 'manual'>('url');
@@ -10,33 +12,79 @@ export const AddProductForm: React.FC = () => {
   const [currentPrice, setCurrentPrice] = useState(0);
   const [retailer, setRetailer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError(null);
     
-    // Simulate submission
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Log successful submission
-    const submissionLog = {
-      timestamp: new Date().toISOString(),
-      level: 'INFO',
-      service: 'my-nextjs-app',
-      correlationId: `add-product-${Date.now()}`,
-      message: 'Product successfully added to monitoring',
-      context: {
-        inputMethod,
-        productName: inputMethod === 'url' ? 'Sample Product from URL' : productName,
+    try {
+      // Create product data
+      const productData: MonitoredProductData = {
+        name: inputMethod === 'url' ? 'Sample Product from URL' : productName,
+        price: inputMethod === 'url' ? 99.99 : currentPrice,
+        image: inputMethod === 'url' ? '/mock-images/sample-product.jpg' : '',
         retailer: inputMethod === 'url' ? 'Amazon' : retailer,
-      },
-    };
-    
-    console.log(JSON.stringify(submissionLog));
-    
-    // Navigate back to dashboard
-    router.push('/dashboard?added=success');
+        category: 'Electronics', // Default category
+        originalUrl: inputMethod === 'url' ? productUrl : undefined,
+        alertSettings: {
+          enablePriceDrop: true,
+          enableBackInStock: false,
+          notificationMethods: ['browser'],
+          percentageThreshold: 10,
+        },
+        dateAdded: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+      };
+
+      // Store in IndexedDB
+      const productId = await productDB.addProductWithNotification(productData);
+      
+      // Log successful submission
+      const submissionLog = {
+        timestamp: new Date().toISOString(),
+        level: 'INFO',
+        service: 'my-nextjs-app',
+        correlationId: `add-product-${productId}`,
+        message: 'Product successfully added to monitoring with IndexedDB',
+        context: {
+          productId,
+          inputMethod,
+          productName: productData.name,
+          retailer: productData.retailer,
+          price: productData.price,
+        },
+      };
+      
+      console.log(JSON.stringify(submissionLog));
+      
+      // Navigate back to dashboard with success indicator
+      router.push('/dashboard?added=success');
+      
+    } catch (error) {
+      console.error('Error adding product:', error);
+      setSubmitError('Failed to add product. Please try again.');
+      
+      // Log error
+      const errorLog = {
+        timestamp: new Date().toISOString(),
+        level: 'ERROR',
+        service: 'my-nextjs-app',
+        correlationId: `add-product-error-${Date.now()}`,
+        message: 'Failed to add product to IndexedDB',
+        context: {
+          error: (error as Error).message,
+          inputMethod,
+          productName: inputMethod === 'url' ? 'Sample Product from URL' : productName,
+        },
+      };
+      
+      console.log(JSON.stringify(errorLog));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -211,6 +259,25 @@ export const AddProductForm: React.FC = () => {
           </p>
         </div>
       </div>
+
+      {/* Error Display */}
+      {submitError && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <span className="text-red-400">❌</span>
+            </div>
+            <div className="ml-3">
+              <h3 className="text-sm font-medium text-red-800 dark:text-red-200">
+                Error adding product
+              </h3>
+              <div className="mt-2 text-sm text-red-700 dark:text-red-300">
+                <p>{submitError}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Submit Button */}
       <div className="flex justify-end space-x-3">

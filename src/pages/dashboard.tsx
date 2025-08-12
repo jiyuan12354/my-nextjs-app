@@ -5,6 +5,7 @@ import Head from 'next/head';
 import { useAuth } from '../components/auth/AuthProvider';
 import RouteGuard from '../components/auth/RouteGuard';
 import { useDashboardData } from '../components/dashboard/hooks/useDashboardData';
+import { SyncStatusIndicator } from '../components/monitor/SyncStatusIndicator';
 
 // Dashboard Components
 import WelcomeSection from '../components/dashboard/WelcomeSection';
@@ -133,6 +134,9 @@ function DashboardContent() {
               </div>
               
               <div className="flex items-center space-x-4">
+                {/* Sync Status Indicator */}
+                <SyncStatusIndicator />
+                
                 {/* Refresh Button */}
                 <button
                   onClick={refreshData}
