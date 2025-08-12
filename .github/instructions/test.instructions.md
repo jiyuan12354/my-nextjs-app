@@ -84,6 +84,8 @@ applyTo: '**'
 - Use lazy loading for non-critical resources
 - Monitor and optimize Core Web Vitals
 - Implement proper image optimization
+- Use IndexedDB for client-side data caching and offline capabilities
+- Implement progressive loading with immediate visual feedback
 
 ### Security
 - Validate all user inputs
@@ -98,6 +100,9 @@ applyTo: '**'
 - Use TypeScript for test files
 - Mock external dependencies appropriately
 - Aim for meaningful test coverage
+- Test IndexedDB operations and data persistence
+- Validate offline functionality and sync behavior
+- Test data migration and schema versioning
 
 ### Documentation
 - Maintain up-to-date README files
@@ -145,6 +150,50 @@ Format all logs as structured JSON with consistent field names and ordering for 
 - Use structured context objects for additional metadata
 - Implement log rotation and retention policies
 - Consider log aggregation tools (ELK stack, CloudWatch, etc.)
+
+### Data Persistence Guidelines
+Use IndexedDB for client-side data storage to provide immediate visual feedback and offline capabilities:
+
+**IndexedDB Implementation Requirements**:
+- Store all CRUD operations (Create, Read, Update, Delete) locally in IndexedDB
+- Implement immediate visual updates for user actions before server synchronization
+- Use structured data schemas with consistent naming conventions
+- Handle data versioning and migration strategies for database updates
+
+**Data Storage Standards**:
+```typescript
+// Example data structure for IndexedDB
+interface StoredItem {
+  id: string;
+  data: any;
+  timestamp: string;
+  status: 'pending' | 'synced' | 'error';
+  version: number;
+}
+```
+
+**Implementation Guidelines**:
+- Create separate object stores for different data types (products, alerts, lists, etc.)
+- Implement proper error handling for IndexedDB operations
+- Use transactions for data consistency
+- Provide fallback mechanisms when IndexedDB is not available
+- Implement data synchronization strategies with server APIs
+- Cache frequently accessed data for improved performance
+- Handle storage quota limitations gracefully
+
+**Visual Feedback Requirements**:
+- Show immediate UI updates when data is stored locally
+- Display sync status indicators (pending, synced, error states)
+- Implement optimistic UI updates with rollback capabilities
+- Provide offline indicators when server is unavailable
+- Cache images and static assets for offline viewing
+
+**Best Practices**:
+- Use wrapper libraries like Dexie.js for simplified IndexedDB operations
+- Implement proper data cleanup and garbage collection
+- Store only necessary data to optimize storage usage
+- Use compression for large data objects when appropriate
+- Implement proper data encryption for sensitive information
 
 ### Development Workflow
 - Use semantic versioning for releases
