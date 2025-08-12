@@ -45,6 +45,23 @@ Access personalized dashboard after login with monitoring overview and quick act
 - **Phase 1**: Static dashboard with mock data and getting started guide
 - **Phase 2**: Dynamic dashboard with real-time data and analytics
 
+## Feature-Specific Stories
+
+### 11. [Add Product to Monitoring](./11-add-product-to-monitoring.md)
+Add new products to monitoring list with customizable alert settings and platform support.
+
+### 12. [View and Manage Monitored Products](./12-view-manage-monitored-products.md)
+Comprehensive management interface for all monitored products with editing and bulk operations.
+
+### 13. [Manage Price Alerts and Notifications](./13-manage-price-alerts-notifications.md)
+Advanced alert management with custom rules, notification preferences, and alert history.
+
+### 14. [Create and Organize Shopping Lists](./14-create-organize-shopping-lists.md)
+Enhanced shopping list management with budgets, sharing, and monitoring integration.
+
+### 15. [Dashboard Quick Actions Navigation](./15-dashboard-quick-actions-navigation.md)
+Efficient navigation system through dashboard quick actions for common user workflows.
+
 ## Story Dependencies
 
 ```
